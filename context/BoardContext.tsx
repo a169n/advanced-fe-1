@@ -94,6 +94,18 @@ const reducer = (state: BoardState, action: BoardAction): BoardState => {
         },
       };
     }
+    case "SET_ROLE": {
+      return {
+        ...state,
+        ui: { ...state.ui, role: action.payload.role },
+      };
+    }
+    case "SET_ACTIVE_STUDENT": {
+      return {
+        ...state,
+        ui: { ...state.ui, activeStudentId: action.payload.studentId },
+      };
+    }
     case "TOGGLE_ADD_MODAL": {
       return {
         ...state,

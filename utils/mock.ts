@@ -1,4 +1,4 @@
-import { BoardState, Language, Task } from "../types";
+import { BoardState, Language, STUDENTS, Student, Task } from "../types";
 
 const rubricOptions = ["Key concepts", "Clarity", "Terminology", "Reasoning", "Cohesion"];
 
@@ -126,13 +126,17 @@ const columnsSeed = [
 ];
 
 export const createTaskFromInput = (
-  input: Pick<Task, "studentName" | "questionPrompt" | "studentAnswer" | "language">,
+  input: Pick<Task, "studentName" | "questionPrompt" | "studentAnswer" | "language"> & {
+    studentId?: Student["id"];
+  },
 ): Task => {
-  const seed = `${input.studentName}-${input.questionPrompt}-${input.studentAnswer}`;
+  const studentId = input.studentId ?? inferStudentId(input.studentName);
+  const seed = `${studentId}-${input.studentName}-${input.questionPrompt}-${input.studentAnswer}`;
   const rubricCriteria = pickRubric(seed);
   const { score, confidence, explanation } = scoreAnswer(input.studentAnswer, input.questionPrompt, input.language);
   return {
     ...input,
+    studentId,
     rubricCriteria,
     simulatedNlpScore: score,
     confidence,
@@ -148,8 +152,9 @@ export const initialBoardState = (): BoardState => {
   const baseTimestamp = new Date("2024-01-01T00:00:00Z").toISOString();
 
   baseQuestions.forEach((sample, index) => {
-    const studentName = `Student ${index + 1}`;
-    const seed = `${studentName}-${sample.prompt}-${sample.answer}`;
+    const student = STUDENTS[index % STUDENTS.length];
+    const studentName = student.name;
+    const seed = `${student.id}-${studentName}-${sample.prompt}-${sample.answer}`;
     const rubricCriteria = pickRubric(seed);
     const { score, confidence, explanation } = scoreAnswer(sample.answer, sample.prompt, sample.language);
     const taskId = deterministicUUID(seed);
@@ -157,6 +162,7 @@ export const initialBoardState = (): BoardState => {
 
     const task: Task = {
       id: taskId,
+      studentId: student.id,
       studentName,
       questionPrompt: sample.prompt,
       studentAnswer: sample.answer,
@@ -184,6 +190,13 @@ export const initialBoardState = (): BoardState => {
       addTaskModalOpen: false,
       activeColumnId: null,
       filters: { language: "all", minScore: 0 },
+      role: "teacher",
+      activeStudentId: "student-1",
     },
   };
+};
+
+const inferStudentId = (name: string): Student["id"] => {
+  const found = STUDENTS.find((s) => s.name.toLowerCase() === name.toLowerCase());
+  return found?.id ?? "student-1";
 };
