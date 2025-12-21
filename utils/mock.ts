@@ -10,7 +10,31 @@ const languageStopwords: Record<Language, string[]> = {
 
 const clamp = (value: number, min: number, max: number) => Math.max(min, Math.min(max, value));
 
-const pickRubric = () => rubricOptions.sort(() => 0.5 - Math.random()).slice(0, 3);
+const simpleHash = (str: string): number => {
+  let hash = 0;
+  for (let i = 0; i < str.length; i++) {
+    const char = str.charCodeAt(i);
+    hash = (hash << 5) - hash + char;
+    hash = hash & hash;
+  }
+  return Math.abs(hash);
+};
+
+const deterministicUUID = (seed: string): string => {
+  const hash = simpleHash(seed);
+  const hex = hash.toString(16).padStart(8, "0");
+  return `00000000-0000-4000-8000-${hex.padStart(12, "0")}`;
+};
+
+const pickRubric = (seed: string) => {
+  const hash = simpleHash(seed);
+  const shuffled = [...rubricOptions];
+  for (let i = shuffled.length - 1; i > 0; i--) {
+    const j = (hash + i) % (i + 1);
+    [shuffled[i], shuffled[j]] = [shuffled[j], shuffled[i]];
+  }
+  return shuffled.slice(0, 3);
+};
 
 const keywordCandidates = (prompt: string) => {
   return prompt
@@ -104,7 +128,8 @@ const columnsSeed = [
 export const createTaskFromInput = (
   input: Pick<Task, "studentName" | "questionPrompt" | "studentAnswer" | "language">,
 ): Task => {
-  const rubricCriteria = pickRubric();
+  const seed = `${input.studentName}-${input.questionPrompt}-${input.studentAnswer}`;
+  const rubricCriteria = pickRubric(seed);
   const { score, confidence, explanation } = scoreAnswer(input.studentAnswer, input.questionPrompt, input.language);
   return {
     ...input,
@@ -120,14 +145,29 @@ export const createTaskFromInput = (
 export const initialBoardState = (): BoardState => {
   const tasksById: Record<string, Task> = {};
   const columns = columnsSeed.map((c) => ({ ...c, taskIds: [] as string[] }));
+  const baseTimestamp = new Date("2024-01-01T00:00:00Z").toISOString();
 
   baseQuestions.forEach((sample, index) => {
-    const task = createTaskFromInput({
-      studentName: `Student ${index + 1}`,
+    const studentName = `Student ${index + 1}`;
+    const seed = `${studentName}-${sample.prompt}-${sample.answer}`;
+    const rubricCriteria = pickRubric(seed);
+    const { score, confidence, explanation } = scoreAnswer(sample.answer, sample.prompt, sample.language);
+    const taskId = deterministicUUID(seed);
+    const createdAt = new Date(new Date(baseTimestamp).getTime() + index * 60000).toISOString();
+
+    const task: Task = {
+      id: taskId,
+      studentName,
       questionPrompt: sample.prompt,
       studentAnswer: sample.answer,
       language: sample.language,
-    });
+      rubricCriteria,
+      simulatedNlpScore: score,
+      confidence,
+      statusReason: explanation,
+      createdAt,
+    };
+
     tasksById[task.id] = task;
     const columnIndex = index % columns.length;
     columns[columnIndex].taskIds.push(task.id);
