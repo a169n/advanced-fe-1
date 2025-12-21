@@ -2,7 +2,7 @@
 
 import { useContext, useMemo } from "react";
 import { BoardContext } from "../context/BoardContext";
-import { BoardState, Language, Task } from "../types";
+import { BoardState, Language, STUDENTS, Task } from "../types";
 import { createTaskFromInput } from "../utils/mock";
 
 const getColumnOrder = (state: BoardState) => state.board.columns.map((c) => c.id);
@@ -28,12 +28,21 @@ export const useAnswerBoard = () => {
   }, [state.board.columns, state.board.tasksById, state.ui.filters]);
 
   const addTask = (
-    input: Pick<Task, "studentName" | "questionPrompt" | "studentAnswer" | "language">,
+    input: Pick<Task, "studentName" | "questionPrompt" | "studentAnswer" | "language"> & {
+      studentId?: Task["studentId"];
+    },
     columnId?: string,
   ) => {
     const targetColumn = columnId ?? state.board.columns[0]?.id ?? "submitted";
     const task = createTaskFromInput(input);
     dispatch({ type: "ADD_TASK", payload: { columnId: targetColumn, task } });
+  };
+
+  const submitStudentAnswer = (
+    input: Pick<Task, "questionPrompt" | "studentAnswer" | "language">,
+  ) => {
+    const student = STUDENTS.find((s) => s.id === state.ui.activeStudentId) ?? STUDENTS[0];
+    addTask({ ...input, studentName: student.name, studentId: student.id }, "submitted");
   };
 
   const deleteTask = (taskId: string) => dispatch({ type: "DELETE_TASK", payload: { taskId } });
@@ -89,10 +98,16 @@ export const useAnswerBoard = () => {
   const closeAddModal = () =>
     dispatch({ type: "TOGGLE_ADD_MODAL", payload: { open: false, columnId: null } });
 
+  const setRole = (role: "teacher" | "student") => dispatch({ type: "SET_ROLE", payload: { role } });
+
+  const setActiveStudent = (studentId: Task["studentId"]) =>
+    dispatch({ type: "SET_ACTIVE_STUDENT", payload: { studentId } });
+
   return {
     state,
     columnsWithTasks,
     addTask,
+    submitStudentAnswer,
     deleteTask,
     moveTaskLeft,
     moveTaskRight,
@@ -101,5 +116,7 @@ export const useAnswerBoard = () => {
     setFilters,
     openAddModal,
     closeAddModal,
+    setRole,
+    setActiveStudent,
   };
 };

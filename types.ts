@@ -1,7 +1,15 @@
 export type Language = "EN" | "RU" | "KZ";
 
+export type Student = { id: "student-1" | "student-2"; name: string };
+
+export const STUDENTS: Student[] = [
+  { id: "student-1", name: "Aruzhan" },
+  { id: "student-2", name: "Daniyar" },
+];
+
 export interface Task {
   id: string;
+  studentId: Student["id"];
   studentName: string;
   questionPrompt: string;
   studentAnswer: string;
@@ -35,6 +43,8 @@ export interface BoardState {
     addTaskModalOpen: boolean;
     activeColumnId: string | null;
     filters: FiltersState;
+    role: "teacher" | "student";
+    activeStudentId: Student["id"];
   };
 }
 
@@ -48,4 +58,6 @@ export type BoardAction =
     }
   | { type: "UPDATE_TASK"; payload: { taskId: string; patch: Partial<Task> } }
   | { type: "SET_FILTERS"; payload: { patch: Partial<FiltersState> } }
-  | { type: "TOGGLE_ADD_MODAL"; payload: { open: boolean; columnId?: string | null } };
+  | { type: "TOGGLE_ADD_MODAL"; payload: { open: boolean; columnId?: string | null } }
+  | { type: "SET_ROLE"; payload: { role: "teacher" | "student" } }
+  | { type: "SET_ACTIVE_STUDENT"; payload: { studentId: Student["id"] } };
